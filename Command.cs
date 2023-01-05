@@ -7,6 +7,7 @@ using Autodesk.Revit.UI.Selection;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 #endregion
 
@@ -38,36 +39,72 @@ namespace RAA_QandA_221222
 
                         Document linkdoc = rvtLinkType.Document;
 
-                        // ----------------------------------
-                        List<WorksetId> lstWkSet_Close = new List<WorksetId>();
-                        List<WorksetId> lstWkSet_Open = new List<WorksetId>();
+                        List<Element> scopeBoxes = GetAllScopeBoxes(linkdoc).ToList();
 
-                        List<Workset> wsLinkList = GetAllUserWorksets(doc);
+                        List<ElementId> scopeBoxIds = GetElementIdFromElements(scopeBoxes);
 
-                        foreach(Workset curWS in wsLinkList)
+                        Transform transform = null;
+                        CopyPasteOptions options = new CopyPasteOptions();
+
+                        using (Transaction t = new Transaction(doc))
                         {
-                            if (curWS.Name == "Shared Levels and Grids")
-                           
-                                lstWkSet_Close.Add(curWS.Id);
-                            else
-                                lstWkSet_Open.Add(curWS.Id);
-                        }
-
-                        using(Transaction t = new Transaction(doc))
-                        {
-                            t.Start("hide workset");
-                            foreach (WorksetId curWS in lstWkSet_Close)
-                            {
-                                HideWorkset(doc, doc.ActiveView, curWS);
-                            }
+                            t.Start("Copy scope boxes");
+                            ElementTransformUtils.CopyElements(linkdoc, scopeBoxIds, doc, transform, options);
                             t.Commit();
                         }
+
+                        //// ----------------------------------
+                        //List<WorksetId> lstWkSet_Close = new List<WorksetId>();
+                        //List<WorksetId> lstWkSet_Open = new List<WorksetId>();
+
+                        //List<Workset> wsLinkList = GetAllUserWorksets(doc);
+
+                        //foreach(Workset curWS in wsLinkList)
+                        //{
+                        //    if (curWS.Name == "Shared Levels and Grids")
+
+                        //        lstWkSet_Close.Add(curWS.Id);
+                        //    else
+                        //        lstWkSet_Open.Add(curWS.Id);
+                        //}
+
+                        //using(Transaction t = new Transaction(doc))
+                        //{
+                        //    t.Start("hide workset");
+                        //    foreach (WorksetId curWS in lstWkSet_Close)
+                        //    {
+                        //        HideWorkset(doc, doc.ActiveView, curWS);
+                        //    }
+                        //    t.Commit();
+                        //}
                     }
                 }
             }
 
             return Result.Succeeded;
         }
+
+        internal List<ElementId> GetElementIdFromElements(List<Element> elemList)
+        {
+            List<ElementId> elementIds = new List<ElementId>();
+
+            foreach (Element curElem in elemList)
+                elementIds.Add(curElem.Id);
+
+            return elementIds;
+        }
+
+        //Get all scope boxes
+        public static IList<Element> GetAllScopeBoxes(Document curDoc)
+        {
+            FilteredElementCollector collectorSbx = new FilteredElementCollector(curDoc);
+            collectorSbx.OfCategory(BuiltInCategory.OST_VolumeOfInterest);
+
+            IList<Element> listSbx = collectorSbx.ToElements();
+
+            return listSbx;
+        }
+
 
         public static List<string> GetUsedFilterNames(Document curDoc)
         {
